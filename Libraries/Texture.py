@@ -3,7 +3,7 @@ import numpy as np
 from OpenGL.GL import *
 
 class Texture:
-    def __init__(self, surface):
+    def __init__(self, surface, format = GL_LINEAR):
         self.id = glGenTextures(1)
         self.surface = surface
         glBindTexture(GL_TEXTURE_2D, self.id)
@@ -14,8 +14,8 @@ class Texture:
                      0, GL_RGBA, GL_UNSIGNED_BYTE, image_data)
 
         glGenerateMipmap(GL_TEXTURE_2D)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, format)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, format)
 
         self.width = surface.get_width()
         self.height = surface.get_height()

@@ -21,9 +21,17 @@ class SpriteRendererGL:
         max_layer = max(SpriteGL.layers.keys(), default=-1)
         for i in range(max_layer + 1):
             for sprite in SpriteGL.layers[i]:
+                zoom = sprite.camera.zoom
                 sprite_rect = pygame.Rect(sprite.x, sprite.y, sprite.width, sprite.height)
                 camera_rect = pygame.Rect(sprite.camera.x, sprite.camera.y, sprite.camera.width, sprite.camera.height)
-                if camera_rect.colliderect(sprite_rect):
+                scaled_camera_rect = pygame.Rect(
+                    camera_rect.centerx - (camera_rect.width / (2 * zoom)),
+                    camera_rect.centery - (camera_rect.height / (2 * zoom)),
+                    camera_rect.width / zoom,
+                    camera_rect.height / zoom
+                )
+
+                if scaled_camera_rect.colliderect(sprite_rect):
                     loc = glGetUniformLocation(self.shader.id, "global_alpha")
                     sprite_alpha = getattr(sprite, "alpha", 255.0)
                     camera_alpha = getattr(sprite.camera, "alpha", 255.0)
@@ -102,7 +110,7 @@ class SpriteRendererGL:
         # Scale also affected by zoom
         sx = sprite.width * getattr(sprite, "scale_x", 1.0) * zoom
         sy = sprite.height * getattr(sprite, "scale_y", 1.0) * zoom
-
+        
         # TRS matrix
         model = np.array([
             [c * sx, -s * sy, 0.0, tx],

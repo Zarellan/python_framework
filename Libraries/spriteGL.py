@@ -1,17 +1,21 @@
 import pygame
 import math
 import numpy as np
-from Libraries.utils import y_correction
+from Libraries.utils import get_mouse_ui_pos
 from Libraries.Texture import Texture
 from collections import defaultdict
 from Libraries.Deltatime import Deltatime
+from OpenGL.GL import *
+from Libraries.TagRegistry import TagRegistry
 
 class SpriteGL:
 
     all_sprites = []
+    all_tags = []
     textures_append = {}
     sprite = ""
     tag_name = ""
+    texture_path = ""
     layers = defaultdict(list)
     origin_centered: bool = True
     camera = None
@@ -25,11 +29,11 @@ class SpriteGL:
     animation_finished_VA = False
     x = 0
     y = 0
-    def __init__(self, image_path, x, y, camera, tag="none", layer_index = 0,is_world = True, origin_center = False):
+    def __init__(self, image_path, x, y, camera, tag="none", layer_index = 0,is_world = True, origin_center = False, is_pixel = False):
         # Load image with pygame
         if (image_path not in SpriteGL.textures_append):
             surface = pygame.image.load("image/" + image_path + ".png").convert_alpha()
-            SpriteGL.textures_append[image_path] = Texture(surface)
+            SpriteGL.textures_append[image_path] = Texture(surface, GL_NEAREST if is_pixel else GL_LINEAR)
         
         self.layer_index = max(layer_index,0)
         SpriteGL.layers[self.layer_index].append(self)
@@ -44,6 +48,7 @@ class SpriteGL:
         self.alpha = 1.0
         self.is_world = is_world
         
+        self.texture_path= image_path
         # Upload to OpenGL
         self.texture = SpriteGL.textures_append[image_path]
         self.width = self.texture.width
@@ -64,6 +69,11 @@ class SpriteGL:
 
         # register sprite in global list
         self.all_sprites.append(self)
+
+        if self.tag not in SpriteGL.all_tags:
+            TagRegistry.ensure_tag(self.tag)
+            SpriteGL.all_tags.append(self.tag)
+
 
 
     # def change_animation(self):
@@ -95,7 +105,8 @@ class SpriteGL:
             if (not self.animation_loop):
                 self.animation_finished = True
             
-
+    def update_draw(self): # for SpriteDynamicInheritance
+        pass
 
     def play_animation(self):
         
@@ -194,3 +205,17 @@ class SpriteGL:
                 sprite.texture.delete()  # call your Texture class's delete method
                 sprite.texture = None
         cls.all_sprites.clear()
+
+    def MouseIsOverlap(self, ui_camera):
+        mouse_x, mouse_y = get_mouse_ui_pos(ui_camera)
+
+        ui_rect = pygame.Rect(
+            self.x,
+            self.y,
+            self.width,
+            self.height
+        )
+
+
+        if ui_rect.collidepoint(mouse_x, mouse_y):
+            return 1

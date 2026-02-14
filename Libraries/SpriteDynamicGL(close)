@@ -1,0 +1,116 @@
+from Libraries.spriteGL import SpriteGL
+from Box2D import b2World, b2PolygonShape, b2_dynamicBody, b2_staticBody
+
+class SpriteDynamicGL(SpriteGL):
+    PPM = 32  # pixels per meter
+
+    def __init__(self, world, camera, position=(5,5), size=(1,1),
+                 density=1.0, friction=0.3, texture_name="background", color=(1,0,0), tag="None", bodyType = b2_dynamicBody):
+        """
+        world        : Box2D world
+        camera       : Camera object for SpriteGL
+        position     : (x, y) in meters
+        size         : (width, height) in meters
+        density      : Box2D fixture density
+        friction     : Box2D fixture friction
+        texture_name : sprite name
+        color        : RGB tuple
+        tag          : optional tag
+        """
+        # --- Create Box2D dynamic body ---
+        if (bodyType == b2_dynamicBody):
+            self.body = world.CreateDynamicBody(position=position)
+        else:
+            self.body = world.CreateStaticBody(position=position)
+        self.body.CreatePolygonFixture(box=(size[0]/2, size[1]/2), density=density, friction=friction)
+
+        self.body.userData = tag
+
+        self.body.type = bodyType
+        # Compute pixel size
+        width_px = size[0] * self.PPM
+        height_px = size[1] * self.PPM
+
+        # Initialize SpriteGL
+        super().__init__(
+            texture_name,
+            self.body.position[0]*self.PPM - width_px/2,
+            self.body.position[1]*self.PPM - height_px/2,
+            camera,
+            tag=tag
+        )
+
+        self.width = width_px
+        self.height = height_px
+        self.color = color
+        self.body_ref = self.body
+
+    def update(self):
+        """Sync sprite with Box2D body every frame"""
+        self.x = self.body.position[0]*self.PPM - self.width/2
+        self.y = self.body.position[1]*self.PPM - self.height/2
+        self.rotation = self.body.angle
+
+    def get_fixture_size(fixture): # in case I need it
+        shape = fixture.shape
+        if hasattr(shape, 'box'):
+            hx, hy = shape.box
+            return hx * 2, hy * 2
+        else:
+            vertices = shape.vertices
+            xs = [v[0] for v in vertices]
+            ys = [v[1] for v in vertices]
+            width = max(xs) - min(xs)
+            height = max(ys) - min(ys)
+            return width, height
+    
+    def set_size(self, new_width, new_height, density=None, friction=None):
+        """
+        Resize the Box2D fixture and update sprite size.
+        new_width, new_height: in meters
+        density, friction: optional, fallback to old values
+        """
+        # Store old fixture properties
+        old_fixture = self.body.fixtures[0]  # assuming one main fixture
+        old_density = old_fixture.density if density is None else density
+        old_friction = old_fixture.friction if friction is None else friction
+
+        # Destroy old fixture
+        self.body.DestroyFixture(old_fixture)
+
+        # Create new fixture
+        self.body.CreatePolygonFixture(
+            box=(new_width/2, new_height/2),
+            density=old_density,
+            friction=old_friction
+        )
+
+        # Update sprite size in pixels
+        self.width = new_width * self.PPM
+        self.height = new_height * self.PPM
+
+    def update_draw(self):
+        self.body = self.body_ref
+        self.width = self.width
+        self.height = self.height
+        # center the sprite on the body
+        self.x = self.body.position[0] * self.PPM - self.width / 2
+        self.y = self.body.position[1] * self.PPM - self.height / 2
+        self.rotation = self.body.angle  # rotate to match body
+
+    @classmethod
+    def UpdateAllDraw(cls):
+        for sprite in cls.all_sprites:
+            sprite.update_draw()
+
+    def apply_linear(self, x, y):
+        self.body.linearVelocity = (x, y)
+
+    def apply_linear_Impulse(self, x, y):
+        self.body.ApplyLinearImpulse((x,y),self.body.worldCenter, False)
+
+    def apply_force(self, fx, fy):
+        self.body.ApplyForceToCenter((fx, fy), True)
+
+    def apply_impulse(self, ix, iy):
+        self.body.ApplyLinearImpulse((ix, iy), self.body.worldCenter, True)

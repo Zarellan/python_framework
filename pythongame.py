@@ -3,6 +3,7 @@ import sys
 import tracemalloc
 from Libraries.sprite import Sprite
 from Libraries.spriteGL import SpriteGL
+from Libraries.SpriteDynamicGL import SpriteDynamicGL
 from Libraries.camera import Camera
 from Libraries.SpriteRendererGL import SpriteRendererGL
 from OpenGL.GL import *
@@ -11,10 +12,13 @@ import gc
 from Libraries.Deltatime import Deltatime
 from Libraries.Timer import Timer
 from Libraries.Tween import Tween
+from Box2D import b2World, b2PolygonShape
+from Box2D import b2World, b2PolygonShape, b2_dynamicBody, b2_staticBody
 
 # setup
 
 force_garbage_collection = True # if you worried about unexpected memory leak, change it to true
+PPM = 32.0  # pixels per meter
 
 # --
 
@@ -25,12 +29,27 @@ print("Memory profiling started...")
 # Count remaining SpriteGL instances
 
 # from Libraries.utils import y_correction
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
 
+# initialize
 pygame.init()
 pygame.display.set_caption("test game")
-screen = pygame.display.set_mode((600, 400), pygame.OPENGL | pygame.DOUBLEBUF)
+# pygame.display.gl_set_attribute(pygame.GL_DEPTH_SIZE, 24)
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.OPENGL | pygame.DOUBLEBUF | pygame.RESIZABLE)
 clock = pygame.time.Clock()
 running = True
+#--
+
+
+# box2D
+world = b2World(gravity=(0, 9.8))
+# --
+
+def pixels_to_meters(px):
+    return px / SpriteDynamicGL.PPM
+
+
 
 def python_exit(events):
     global running
@@ -189,8 +208,8 @@ dx = 0
 dy = 0
 gravity = 30
 
-sprite_renderer = SpriteRendererGL(600, 400)
-camera = Camera(600,400,400)
+sprite_renderer = SpriteRendererGL(SCREEN_WIDTH, SCREEN_HEIGHT)
+camera = Camera(SCREEN_WIDTH,SCREEN_HEIGHT,SCREEN_HEIGHT)
 
 def create_map():
     y = 0
@@ -208,38 +227,6 @@ dt = 0
 speed_x = 100
 jump_power = 7
 
-# pygame.OPENGL
-
-# def change_size(widtho, heighto):
-#     # Preserve visual center-x and feet (bottom) when changing base size
-#     old_centerx = player.rect.centerx
-#     old_bottom = player.rect.bottom
-
-#     player.width += widtho
-#     player.height += heighto
-
-#     # Treat this as changing the base/original size so scale stays consistent
-#     player.original_width = player.width
-#     player.original_height = player.height
-#     player.scale_x = 1.0
-#     player.scale_y = 1.0
-
-#     # Reposition so center-x and bottom remain unchanged
-#     player.x = old_centerx - player.width / 2
-#     player.y = old_bottom - player.height
-
-# def change_scale(x, y):
-#     old_bottom = player.rect.bottom
-#     player.scale_x += x
-#     player.scale_y += y
-
-#     # Use floats internally
-#     new_width = player.original_width * player.scale_x
-#     new_height = player.original_height * player.scale_y
-
-#     player.rect.width = int(new_width)
-#     player.rect.height = int(new_height)
-#     player.y = old_bottom - new_height  # use float for calculations
 
 
 def change_size(widtho, heighto):
@@ -303,6 +290,36 @@ def change_scale(x, y):
 
 pressed = 0
 
+def ui_sprite_rect(sprite, camera, screen_height):
+    zoom = camera.zoom
+
+    # Screen center
+    cx = camera.width / 2
+    cy = camera.height / 2
+
+    # Sprite center (screen space)
+    sx = sprite.x + sprite.width / 2
+    sy = screen_height - sprite.y - sprite.height / 2
+
+    # Apply centered zoom
+    x = cx + (sx - cx) * zoom - (sprite.width * zoom) / 2
+    y = cy + (sy - cy) * zoom - (sprite.height * zoom) / 2
+
+    w = sprite.width * zoom
+    h = sprite.height * zoom
+
+    return pygame.Rect(x, y, w, h)
+
+
+ui_camera = Camera(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_HEIGHT, True)
+# heart_sprite = SpriteGL("1", 0, 0, ui_camera, tag="UI")
+heart_sprite = SpriteGL("background", SCREEN_WIDTH / 2 , 200, ui_camera, tag="UI")
+heart_sprite.width = 300
+
+player = SpriteGL("1", 200, 200,camera,"player",1)
+player.set_animation(["1","2"],0.3,True)
+
+
 def Update(events):
     global pressed
     key_press.update_key(events)
@@ -310,30 +327,15 @@ def Update(events):
     player_movement(key_press)
     move_player(player, dx, dy, SpriteGL.get_all_by_tag("wall"))
     
-    if (key_press.up):
-        # player.change_animation()
-        player.set_animation(["1","2"],0.3,True)
-    if (key_press.down):
-        player.change_image("background")
-
-    change_size(player.width,player.height)
-    # change_scale(player.scale_x,player.scale_y + 0.01)
-    # optional: adjust x so left edge stays fixed
-    # player.rect.left = old_left  # if you want left-edge anchored
+    if heart_sprite.MouseIsOverlap(ui_camera):
+        print("Mouse over UI sprite")
 
     camera.follow(player, dt)
     resolve_collisions(player, SpriteGL.get_all_by_tag("wall"))
-    # destroy_walls_right_of_player(player, y_margin=30)
-    # if (key_press.up):
-    #     Sprite.get_all_by_tag("wall")[0].destroy()
-    # player.update_draw(display, camera)
-    # for wall in walls:
-    #     wall.update_draw(display, camera)
 
 def Destroy():
     print("error occur")
 
-player = SpriteGL("1", 200, 200,camera,"player",1)
 
 frame_count = 0
 stopit = False
@@ -342,9 +344,6 @@ yyy = 0
 def print_world():
     print("hello world")
 
-# ui_camera = Camera(800, 600, 400, True)
-# heart_sprite = SpriteGL("1", 0, 0, ui_camera, tag="UI")
-# heart_sprite = SpriteGL("1", 600 - 500, 0, ui_camera, tag="UI")
 
 # t = Tween.x(heart_sprite, heart_sprite.x + 600 - 32, 1.0, ease=Tween.ease_in_quad,on_complete=lambda: print("finished"))
 # t = Tween.x(heart_sprite, 200, 1, ease=Tween.ease_out_quad,on_complete=lambda: print("finished"))
@@ -359,28 +358,14 @@ try:
 
         Update(events)
 
-        # if (key_press.down):
-        #     t.stop()
-        # if (key_press.down):
-        #     Sprite("fish", 100, 100, "None")
-        # display.fill((0,0,0))
-        # Sprite.UpdateAllDraw(display, camera)
-        # surf = pygame.transform.scale(display,(600,400))
-        # screen.blit(surf,(0,0))
-        # pygame.display.update()
-        if (key_press.down):
-            stopit = True
-        # if (not stopit):
-        #     SpriteGL("background", xxx, yyy, "None",0)
-        # xxx += 32
-        # if (xxx == 32 * 20):
-        #     xxx = 0
-        #     yyy += 32
+        world.Step(Deltatime.dt, 6, 2)
+        world.ClearForces()
         Timer.UpdateAllTimers()
         SpriteGL.UpdateAllAnimation()
         Tween.UpdateAllTweens()
         glClearColor(0, 0, 0, 1)
         glClear(GL_COLOR_BUFFER_BIT)
+        SpriteDynamicGL.UpdateAllDraw()
         sprite_renderer.draw(SpriteGL.all_sprites)
         pygame.display.flip()
         
