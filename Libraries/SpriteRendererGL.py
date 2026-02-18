@@ -4,6 +4,7 @@ import ctypes
 from OpenGL.GL import *
 from Libraries.Shader import Shader
 from Libraries.spriteGL import SpriteGL
+from Libraries.GameObject import GameObject
 
 class SpriteRendererGL:
     def __init__(self, screen_width, screen_height):
@@ -84,6 +85,9 @@ class SpriteRendererGL:
     
 
     def _draw_sprite(self, sprite, camera):
+
+        if not hasattr(sprite, "texture") or sprite.texture is None:
+            return
         # Apply camera zoom
         zoom = getattr(camera, "zoom", 1.0)
         

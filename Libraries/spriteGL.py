@@ -10,8 +10,6 @@ from Libraries.TagRegistry import TagRegistry
 
 class SpriteGL:
 
-    all_sprites = []
-    all_tags = []
     textures_append = {}
     sprite = ""
     tag_name = ""
@@ -68,11 +66,11 @@ class SpriteGL:
         self._cached_y = None
 
         # register sprite in global list
-        self.all_sprites.append(self)
+        # self.all_sprites.append(self)
 
-        if self.tag not in SpriteGL.all_tags:
-            TagRegistry.ensure_tag(self.tag)
-            SpriteGL.all_tags.append(self.tag)
+        # if self.tag not in SpriteGL.all_tags:
+        #     TagRegistry.ensure_tag(self.tag)
+        #     SpriteGL.all_tags.append(self.tag)
 
 
 
@@ -167,44 +165,123 @@ class SpriteGL:
         self.layer_index = max(new_layer,0)
         SpriteGL.layers[self.layer_index].append(self)
     
-    # ✅ Class method to get all sprites by tag
-    @classmethod
-    def get_all_by_tag(cls, tag_name):
-        return [sprite for sprite in cls.all_sprites if sprite.tag == tag_name]
-    # Class method to draw all sprites
-    @classmethod
-    def UpdateAllDraw(cls, display, camera):
-        for i in range(max(4)):
-            for sprite in cls.all_sprites:
-                if (sprite.layer_index == i):
-                    sprite.update_draw(display, camera)
+    # # ✅ Class method to get all sprites by tag
+    # @classmethod
+    # def get_all_by_tag(cls, tag_name):
+    #     return [sprite for sprite in cls.all_sprites if sprite.tag == tag_name]
+    # # Class method to draw all sprites
+    # @classmethod
+    # def UpdateAllDraw(cls, display, camera):
+    #     for i in range(max(4)):
+    #         for sprite in cls.all_sprites:
+    #             if (sprite.layer_index == i):
+    #                 sprite.update_draw(display, camera)
 
-    @classmethod
-    def UpdateAllAnimation(cls):
-        for sprite in cls.all_sprites:
-            if (sprite.animation_frames):
-                sprite.play_animation()
+    # @classmethod
+    # def UpdateAllAnimation(cls):
+    #     for sprite in cls.all_sprites:
+    #         if (sprite.animation_frames):
+    #             sprite.play_animation()
 
     # Optional: remove a sprite from the central list
     def destroy(self):
-        if self in SpriteGL.all_sprites:
-            SpriteGL.all_sprites.remove(self)
-        # Clean up OpenGL texture
-        if self.texture:
-            self.texture.delete()
-            self.texture = None
+        """
+        Destroy this sprite without deleting the GPU texture.
+        Removes references from parent GameObject and rendering layers.
+        """
+        # Remove references from parent GameObject if any
+        if hasattr(self, "parent_object"):
+            self.parent_object.sprite = None
 
-    @classmethod
-    def destroy_all(cls):
-        """
-        Destroy all sprites and free GPU memory.
-        """
-        for sprite in cls.all_sprites:
-            # Delete OpenGL texture if exists
-            if hasattr(sprite, "texture") and sprite.texture is not None:
-                sprite.texture.delete()  # call your Texture class's delete method
-                sprite.texture = None
-        cls.all_sprites.clear()
+        # Remove sprite from its rendering layer so it won't be drawn
+        try:
+            if hasattr(self, 'layer_index') and self in SpriteGL.layers.get(self.layer_index, []):
+                SpriteGL.layers[self.layer_index].remove(self)
+        except Exception:
+            pass
+
+        # Do NOT delete self.texture — keep it in GPU memory
+        self.texture = None
+
+
+    # def destroy(self):
+    # """
+    # Destroy this sprite and safely free GPU memory,
+    # without relying on global all_sprites.
+    # """
+    # # Remove references from parent GameObject if any
+    # if hasattr(self, "parent_object"):
+    #     try:
+    #         self.parent_object.sprite = None
+    #     except Exception:
+    #         pass
+
+    # # Remove sprite from its layer so renderer won't try to draw it
+    # try:
+    #     if hasattr(self, 'layer_index') and self in SpriteGL.layers.get(self.layer_index, []):
+    #         SpriteGL.layers[self.layer_index].remove(self)
+    # except Exception:
+    #     pass
+
+    # # Delete texture only if no other sprite references it
+    # if hasattr(self, "texture") and self.texture is not None:
+    #     tex = self.texture
+    #     other_uses = False
+    #     for lst in SpriteGL.layers.values():
+    #         for spr in lst:
+    #             if spr is self:
+    #                 continue
+    #             if getattr(spr, 'texture', None) is tex:
+    #                 other_uses = True
+    #                 break
+    #         if other_uses:
+    #             break
+
+    #     if other_uses:
+    #         # Another sprite still uses this texture; do not delete GPU resource
+    #         try:
+    #             # just clear our reference
+    #             self.texture = None
+    #         except Exception:
+    #             self.texture = None
+    #     else:
+    #         try:
+    #             tex.delete()
+    #         except Exception:
+    #             pass
+    #         self.texture = None
+
+
+    # @classmethod
+    # def destroy_all(cls, skip=None):
+    #     """
+    #     Destroy all sprites and free GPU memory.
+    #     skip: list of sprites to keep (persistent)
+    #     """
+    #     if skip is None:
+    #         skip = []
+
+    #     # Determine textures that must be preserved because skip sprites use them
+    #     textures_to_keep = set()
+    #     for s in skip:
+    #         if hasattr(s, "texture") and s.texture is not None:
+    #             textures_to_keep.add(s.texture)
+
+    #     for sprite in cls.all_sprites:
+    #         if sprite in skip:
+    #             continue
+    #         if hasattr(sprite, "texture") and sprite.texture is not None:
+    #             # Only delete texture if it's not used by a persistent sprite
+    #             if sprite.texture not in textures_to_keep:
+    #                 try:
+    #                     sprite.texture.delete()
+    #                 except Exception:
+    #                     pass
+    #             sprite.texture = None
+
+    #     # Only keep the persistent sprites in the global list
+    #     cls.all_sprites = [s for s in cls.all_sprites if s in skip]
+
 
     def MouseIsOverlap(self, ui_camera):
         mouse_x, mouse_y = get_mouse_ui_pos(ui_camera)

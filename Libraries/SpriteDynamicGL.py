@@ -230,10 +230,10 @@ class SpriteDynamicGL(SpriteGL):
         self.y = self.body.position[1] * self.PPU - self.height / 2
         self.rotation = self.body.angle  # rotate to match body
 
-    @classmethod
-    def UpdateAllDraw(cls):
-        for sprite in cls.all_sprites:
-            sprite.update_draw()
+    # @classmethod
+    # def UpdateAllDraw(cls):
+    #     for sprite in cls.all_sprites:
+    #         sprite.update_draw()
 
     def apply_linear(self, x, y):
         self.body.linearVelocity = (x, y)

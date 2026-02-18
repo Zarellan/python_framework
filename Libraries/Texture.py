@@ -21,9 +21,15 @@ class Texture:
         self.height = surface.get_height()
 
     def bind(self):
+        # If texture was deleted `self.id` can be None — skip binding then.
+        if getattr(self, 'id', None) is None:
+            return
         glBindTexture(GL_TEXTURE_2D, self.id)
 
     def delete(self):
-        if self.id:
-            glDeleteTextures([self.id])
+        if getattr(self, 'id', None):
+            try:
+                glDeleteTextures([self.id])
+            except Exception:
+                pass
             self.id = None
