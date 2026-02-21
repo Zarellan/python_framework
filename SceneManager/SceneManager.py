@@ -24,3 +24,16 @@ class SceneManager:
     def render(cls):
         if cls.current_scene:
             cls.current_scene.render()
+
+    @classmethod
+    def destroy(cls):
+        if cls.current_scene:
+            cls.current_scene.destroy()
+
+    @classmethod
+    def destroy_immediate(cls):
+        if cls.current_scene:
+            cls.current_scene.destroy_immediate()
+            cls.current_scene = None
+
+

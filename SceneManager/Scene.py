@@ -22,8 +22,11 @@ class Scene:
 
         from SceneManager.Persistent import Persistent
         try:
-            print(Persistent.get_all())
             GameObject.destroy_all(skip=Persistent.get_all())
         except Exception as e:
             print("Error while destroying Sprites:", e)
+        pass
+
+    def destroy_immediate(self):
+        GameObject.destroy_all()
         pass

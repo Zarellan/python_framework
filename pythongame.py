@@ -1,35 +1,16 @@
-import pygame
-import sys
-import tracemalloc
-from Libraries.sprite import Sprite
-from Libraries.spriteGL import SpriteGL
-from Libraries.SpriteDynamicGL import SpriteDynamicGL
-from Libraries.camera import Camera
-from Libraries.SpriteRendererGL import SpriteRendererGL
-from OpenGL.GL import *
-from Libraries.Texture import Texture
-import gc
-from Libraries.Deltatime import Deltatime
-from Libraries.Timer import Timer
-from Libraries.Tween import Tween
-from Box2D import b2World, b2PolygonShape
-from Box2D import b2World, b2PolygonShape, b2_dynamicBody, b2_staticBody
-from SceneManager.SceneManager import SceneManager
+from Libraries.Libraries import *
 from GameScene import GameScene
-from Libraries.Windows import Windows
-from Libraries.MainCamera import MainCamera
-from Libraries.KeyPress import KeyPress
-from Libraries.GameObject import GameObject
 
 # setup
 
 force_garbage_collection = True # if you worried about unexpected memory leak, change it to true
 PPM = 32.0  # pixels per meter
-
+TRACEMALLOC = False
 # --
 
-tracemalloc.start()
-print("Memory profiling started...")
+if (TRACEMALLOC):
+    tracemalloc.start()
+    print("Memory profiling started...")
 
 
 # Count remaining SpriteGL instances
@@ -55,6 +36,8 @@ running = True
 
 # box2D
 world = b2World(gravity=(0, 9.8))
+
+WorldHandler.Set_World(world)
 # --
 
 def pixels_to_meters(px):
@@ -180,6 +163,24 @@ def print_world():
     print("hello world")
 
 
+def shutdown_engine():
+    print("Shutting down engine...")
+
+    SceneManager.destroy_immediate()
+    sprite_renderer.cleanup()
+
+    if (TRACEMALLOC):
+        current, peak = tracemalloc.get_traced_memory()
+        #print(f"Final memory: Current: {current / 1024 / 1024:.1f} MB, Peak: {peak / 1024 / 1024:.1f} MB")
+        print(f"Frame {frame_count}: Current memory: {current / 1024 / 1024:.1f} MB, Peak: {peak / 1024 / 1024:.1f} MB, Sprites: {len(GameObject.all_objects)}")
+        tracemalloc.stop()
+
+    if force_garbage_collection:
+        gc.collect()
+
+    pygame.quit()
+    sys.exit()
+
 # t = Tween.x(heart_sprite, heart_sprite.x + 600 - 32, 1.0, ease=Tween.ease_in_quad,on_complete=lambda: print("finished"))
 # t = Tween.x(heart_sprite, 200, 1, ease=Tween.ease_out_quad,on_complete=lambda: print("finished"))
 # Tween.camera_zoom(ui_camera, 1.05, 1, ease=Tween.ease_out_quad,on_complete=lambda: print("finished"))
@@ -195,7 +196,6 @@ try:
         KeyPress.update_key(events)
 
         SceneManager.update()
-        SceneManager.render()
 
         # Update(events)
 
@@ -211,29 +211,18 @@ try:
         pygame.display.flip()
         
         # Memory check every 60 frames (1 second at 60 FPS)
-        frame_count += 1
-        if frame_count % 60 == 0:
-            current, peak = tracemalloc.get_traced_memory()
-            print(f"Frame {frame_count}: Current memory: {current / 1024 / 1024:.1f} MB, Peak: {peak / 1024 / 1024:.1f} MB, Sprites: {len(GameObject.all_objects)}")
+        if (TRACEMALLOC):
+            frame_count += 1
+            if frame_count % 60 == 0:
+                current, peak = tracemalloc.get_traced_memory()
+                print(f"Frame {frame_count}: Current memory: {current / 1024 / 1024:.1f} MB, Peak: {peak / 1024 / 1024:.1f} MB, Sprites: {len(GameObject.all_objects)}")
 
 except KeyboardInterrupt:
-    Destroy()
-    sprite_renderer.cleanup()  # Clean up shader, VAO, VBO
-    SpriteGL.destroy_all()  # Clean up all sprite textures
+    shutdown_engine()
 except Exception as e:
     print("Exception:", e)
     import traceback
     traceback.print_exc()
-    Destroy()
+    shutdown_engine()
 finally:
-    print("Cleaning up OpenGL resources...")
-    sprite_renderer.cleanup()  # Clean up shader, VAO, VBO
-    GameObject.destroy_all()  # Clean up all sprite textures
-    print("Remaining SpriteGL instances:", len(GameObject.all_objects))
-    current, peak = tracemalloc.get_traced_memory()
-    print(f"Final memory: Current: {current / 1024 / 1024:.1f} MB, Peak: {peak / 1024 / 1024:.1f} MB")
-    tracemalloc.stop()
-    if (force_garbage_collection):
-        gc.collect()
-    pygame.quit()
-    sys.exit()
+    shutdown_engine()
