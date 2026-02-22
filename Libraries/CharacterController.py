@@ -20,7 +20,9 @@ class CharacterController:
     gravity = 30
     def __init__(self, image_path, x, y):
         self.player = GameObject("player")
-        self.player.create_sprite(image_path, x, y, MainCamera.camera)
+        self.player.add_sprite(image_path,MainCamera.camera)
+        self.player.transform.x = x
+        self.player.transform.y = y
         pass
 
     
@@ -44,22 +46,31 @@ class CharacterController:
         return sprite1.rect.colliderect(sprite2.rect)
 
 
+    def sync_sprite_to_transform(self):
+        """Sync sprite position from transform for collision detection"""
+        self.player.sprite.x = self.player.transform.x - self.player.sprite.width / 2
+        self.player.sprite.y = self.player.transform.y - self.player.sprite.height / 2
+
     def move_player(self, walls):
-        self.player.sprite.x += self.dx
+        self.player.transform.x += self.dx
+        self.sync_sprite_to_transform()
         for wall in walls:
             if self.player.sprite.rect.colliderect(wall.rect):
                 if self.dx > 0:
-                    self.player.sprite.x = wall.rect.left - self.player.sprite.rect.width
+                    self.player.transform.x = wall.rect.left - self.player.sprite.rect.width + self.player.sprite.width / 2
                 elif self.dx < 0:
-                    self.player.sprite.x = wall.rect.right
+                    self.player.transform.x = wall.rect.right + self.player.sprite.width / 2
+                self.sync_sprite_to_transform()
 
-        self.player.sprite.y += self.dy
+        self.player.transform.y += self.dy
+        self.sync_sprite_to_transform()
         for wall in walls:
             if self.player.sprite.rect.colliderect(wall.rect):
                 if self.dy > 0:
-                    self.player.sprite.y = wall.rect.top - self.player.sprite.rect.height
+                    self.player.transform.y = wall.rect.top - self.player.sprite.rect.height + self.player.sprite.height / 2
                 elif self.dy < 0:
-                    self.player.sprite.y = wall.rect.bottom
+                    self.player.transform.y = wall.rect.bottom + self.player.sprite.height / 2
+                self.sync_sprite_to_transform()
 
     def resolve_collisions(self, walls):
         # X-axis
@@ -67,20 +78,22 @@ class CharacterController:
             if self.player.sprite.rect.colliderect(wall.rect):
                 if self.player.sprite.rect.centerx < wall.rect.centerx:
                     # player is left of wall -> push left
-                    self.player.sprite.x = wall.rect.left - self.player.sprite.rect.width
+                    self.player.transform.x = wall.rect.left - self.player.sprite.rect.width + self.player.sprite.width / 2
                 else:
                     # player is right of wall -> push right
-                    self.player.sprite.x = wall.rect.right
+                    self.player.transform.x = wall.rect.right + self.player.sprite.width / 2
+                self.sync_sprite_to_transform()
 
         # Y-axis
         for wall in walls:
             if self.player.sprite.rect.colliderect(wall.rect):
                 if self.player.sprite.rect.bottom <= wall.rect.centery:
                     # player above wall -> stand on top
-                    self.player.sprite.y = wall.rect.top - self.player.sprite.rect.height
+                    self.player.transform.y = wall.rect.top - self.player.sprite.rect.height + self.player.sprite.height / 2
                 else:
                     # player below wall -> hit ceiling
-                    self.player.sprite.y = wall.rect.bottom
+                    self.player.transform.y = wall.rect.bottom + self.player.sprite.height / 2
+                self.sync_sprite_to_transform()
 
     def player_movement(self):
         self.dx = 0

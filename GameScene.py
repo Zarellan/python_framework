@@ -1,4 +1,5 @@
 from Libraries.Libraries import *
+from GameScene2 import GameScene2
 
 class GameScene(Scene):
 
@@ -24,15 +25,18 @@ class GameScene(Scene):
         # self.player.set_animation(["1","2"],0.3,True)
         # self.tes = SpriteGL("1",200,200,MainCamera.camera,"pl")
         self.tes = GameObject("pl")
-        self.tes.create_sprite("1",200,200,MainCamera.camera)
+        self.tes.add_sprite("1",MainCamera.camera)
+        self.tes.set_position(200,200)
         self.player = CharacterController("1",200,200)
         self.player.player.sprite.set_layer(2)
+        Persistent.dont_destroy_on_load(self.tes)
         self.player.player.sprite.set_animation(["1","2"],0.3,True)
         self.create_map()
 
-        for i in range(50):
-            fish = GameObject("wal1l")
-            fish.create_sprite("fish", 200, 1 * i, MainCamera.camera)
+        # for i in range(50):
+        #     fish = GameObject("wal1l")
+        #     fish.add_sprite("fish", 200, 1 * i, MainCamera.camera)
+        #     fish.transform.x = 200
 
         # Create player, map, world here
         # create_map()
@@ -50,7 +54,9 @@ class GameScene(Scene):
             for tile in row:
                 if tile == 1:
                     wall = GameObject("wall")
-                    wall.create_sprite("background", x * 32, y * 32, MainCamera.camera)
+                    wall.add_sprite("background", MainCamera.camera)
+                    wall.transform.x = x * 32
+                    wall.transform.y = y * 32
                 x += 1
             y += 1
             x = 0
@@ -64,8 +70,8 @@ class GameScene(Scene):
         self.player.player_movement()
         MainCamera.camera.follow(self.player.player,Deltatime.dt)
 
-        # if (KeyPress.down):
-        #     SceneManager.load_scene(GameScene2())
+        if (KeyPress.down):
+            SceneManager.load_scene(GameScene2())
 
 
         # Put your Update(events) logic here

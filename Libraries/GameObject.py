@@ -4,6 +4,9 @@ from Box2D import b2World, b2PolygonShape, b2_dynamicBody, b2_staticBody
 from Box2D import b2Filter
 from Libraries.TagRegistry import TagRegistry
 from OpenGL.GL import *
+from Libraries.Transform import Transform
+from Libraries.DynamicBody import DynamicBody
+
 import math
 
 class GameObject:
@@ -13,6 +16,7 @@ class GameObject:
     def __init__(self, tag):
         self.sprite = None
         self.tag = tag
+        self.transform = Transform()
         # per-object flag that forwards to the sprite when present
         self._draw_colliders = False
         self.__class__.all_objects.append(self)
@@ -22,10 +26,18 @@ class GameObject:
             GameObject.all_tags.append(self.tag)
 
 
+    def add_sprite(self, image_path, camera):
+        self.sprite = SpriteGL(image_path, self.transform.x, self.transform.y, camera)
+        return self.sprite
 
     def create_sprite(self,imagePath,x,y,camera):
         self.sprite = SpriteGL(imagePath,x,y,camera)
         pass
+
+    def add_dynamic_body(self, world, **kwargs):
+        self.dynamic_body = DynamicBody(self, world, **kwargs)
+        return self.dynamic_body
+
     def create_dynamic_sprite(self, world, camera, position=(5,5), size=(1,1),
                  density=1.0, friction=0.3, texture_name="background", color=(1,0,0), bodyType = b2_dynamicBody, ppu=None):
         self.sprite = SpriteDynamicGL(world, camera, position=position, size=size,
@@ -43,6 +55,18 @@ class GameObject:
 
         if self in self.__class__.all_objects:
             self.__class__.all_objects.remove(self)
+
+    def apply_linear(self, x, y):
+        self.body.linearVelocity = (x, y)
+
+    def apply_linear_Impulse(self, x, y):
+        self.body.ApplyLinearImpulse((x,y),self.body.worldCenter, False)
+
+    def apply_force(self, fx, fy):
+        self.body.ApplyForceToCenter((fx, fy), True)
+
+    def apply_impulse(self, ix, iy):
+        self.body.ApplyLinearImpulse((ix, iy), self.body.worldCenter, True)
 
     @classmethod
     def destroy_all(cls, skip=None):
@@ -77,28 +101,76 @@ class GameObject:
         return [obj for obj in cls.all_objects if obj.tag == tag_name]
     
     def update_draw_dynamic(self):
-        self.sprite.body = self.sprite.body_ref
-        self.sprite.width = self.sprite.width
-        self.sprite.height = self.sprite.height
-        # center the sprite on the body
-        self.sprite.x = self.sprite.body.position[0] * self.PPU - self.sprite.width / 2
-        self.sprite.y = self.sprite.body.position[1] * self.PPU - self.sprite.height / 2
-        self.sprite.rotation = self.sprite.body.angle  # rotate to match body
+        if self.sprite and isinstance(self.sprite, SpriteDynamicGL):
+            # center the sprite on the physics body
+            self.transform.x = self.sprite.body.position[0] * self.PPU
+            self.transform.y = self.sprite.body.position[1] * self.PPU
+            self.transform.rotation = self.sprite.body.angle
+
+            # sprite mirrors the transform
+            self.sprite.x = self.transform.x - self.sprite.width / 2
+            self.sprite.y = self.transform.y - self.sprite.height / 2
+            self.sprite.rotation = self.transform.rotation    # Class method to draw all sprites
         pass
-    # Class method to draw all sprites
+
+    def set_position(self,x,y):
+        self.transform.x = x
+        self.transform.y = y
+
+    def update(self):
+        # 1️⃣ Physics → Transform
+        if self.dynamic_body:
+            self.dynamic_body.update_transform()
+
+        # 2️⃣ Transform → Sprite
+        if self.sprite:
+            self.sprite.x = self.transform.x - self.sprite.width / 2
+            self.sprite.y = self.transform.y - self.sprite.height / 2
+            self.sprite.rotation = self.transform.rotation
+
+        # 3️⃣ Play animation if applicable
+        if self.sprite and getattr(self.sprite, "animation_frames", None):
+            self.sprite.play_animation()
+
     @classmethod
     def UpdateAllDraw(cls, display, camera):
         for i in range(4):
             for obj in cls.all_objects:
                 if (obj.sprite.layer_index == i):
                     obj.sprite.update_draw(display, camera)
+    def update(self):
+        # Physics → Transform
+        if hasattr(self, "dynamic_body") and self.dynamic_body:
+            self.dynamic_body.update_transform()
 
+        # Transform → Sprite
+        if self.sprite:
+            if isinstance(self.sprite, SpriteDynamicGL):
+                self.update_draw_dynamic()
+            else:  # SpriteGL
+                self.update_draw_static()
+
+        # Play animation if applicable
+        if self.sprite and getattr(self.sprite, "animation_frames", None):
+            self.sprite.play_animation()
+
+    def update_draw_static(self):
+        if self.sprite and isinstance(self.sprite, SpriteGL):
+            # Center sprite on transform
+            self.sprite.x = self.transform.x - self.sprite.width / 2
+            self.sprite.y = self.transform.y - self.sprite.height / 2
+            self.sprite.rotation = self.transform.rotation
     @classmethod
     def UpdateAllDrawDynamic(cls):
         for obj in cls.all_objects:
             obj.update_draw_dynamic()
         pass
-
+    
+    @classmethod
+    def UpdateAllObjects(cls):
+        for obj in cls.all_objects:
+            obj.update()
+        pass
     @classmethod
     def UpdateAllAnimation(cls):
         for obj in cls.all_objects:

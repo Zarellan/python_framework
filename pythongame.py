@@ -202,7 +202,7 @@ try:
         world.Step(Deltatime.dt, 6, 2)
         world.ClearForces()
         Timer.UpdateAllTimers()
-        GameObject.UpdateAllAnimation()
+        GameObject.UpdateAllObjects()
         Tween.UpdateAllTweens()
         glClearColor(0, 0, 0, 1)
         glClear(GL_COLOR_BUFFER_BIT)

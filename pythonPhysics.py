@@ -6,12 +6,14 @@ SCREEN_HEIGHT = 720
 
 # --- Pygame + OpenGL setup ---
 pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.OPENGL | pygame.DOUBLEBUF)
+screen = pygame.display.set_mode(
+    (SCREEN_WIDTH, SCREEN_HEIGHT), pygame.OPENGL | pygame.DOUBLEBUF
+)
 pygame.display.set_caption("Box2D + OpenGL Test")
 clock = pygame.time.Clock()
 
-Windows.WIDTH = 1280
-Windows.HEIGHT = 720
+Windows.WIDTH = SCREEN_WIDTH
+Windows.HEIGHT = SCREEN_HEIGHT
 MainCamera.Set_Camera()
 sprite_renderer = SpriteRendererGL(SCREEN_WIDTH, SCREEN_HEIGHT)
 camera = Camera(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_HEIGHT)
@@ -21,51 +23,30 @@ world = b2World(gravity=(0, 30))
 WorldHandler.Set_World(world)
 WorldHandler.world.contactListener = MyContactListener()
 
-# --- Create ground using GameObject ---
+# --- Create ground ---
 ground = GameObject("Ground")
-ground.create_dynamic_sprite(
-    world, camera,
-    position=(20, 20),
-    size=(40, 20),
-    color=(0,1,0),
-    texture_name="fish",
-    bodyType=b2_staticBody
-)
+ground.add_dynamic_body(world, position=(20, 20), size=(40, 20), bodyType=b2_staticBody)
+ground.add_sprite("fish", camera)
 ground.draw_colliders = True
-ground.sprite.set_size(40, 20)
 
-# --- Create player using GameObject ---
+# --- Create player ---
 player = GameObject("Player")
-player.create_dynamic_sprite(
-    world, camera,
-    position=(5, 5),
-    size=(2, 2),
-    color=(1,0,0),
-    texture_name="1",
-    bodyType=b2_dynamicBody,
-    friction=0
-)
+player.add_dynamic_body(world, position=(5, 5), size=(2, 2), bodyType=b2_dynamicBody)
+player.add_sprite("1", camera)
 player.draw_colliders = True
-player.sprite.body.fixedRotation = True
+player.dynamic_body.body.fixedRotation = True
 
-
-# --- Create some boxes using GameObject ---
+# --- Create boxes ---
 boxes = []
 for i in range(5):
     box = GameObject("Box")
-    box.create_dynamic_sprite(
-        world, camera,
-        position=(20, 10 - (i * 2)),
-        size=(1, 1),
-        color=(1,0,0),
-        bodyType=b2_dynamicBody,
-        friction=0.3
-    )
-    box.sprite.include_colliders(["Ground", "Box", "Player"])
+    box.add_dynamic_body(world, position=(20, 10 - (i * 2)), size=(1, 1),bodyType=b2_dynamicBody)
+    box.add_sprite("background", camera)
+    box.dynamic_body.include_colliders(["Ground", "Box", "Player"])
     boxes.append(box)
 
-player.include_colliders(["Ground", "Box"])
-ground.include_colliders(["Player", "Box"])
+player.dynamic_body.include_colliders(["Ground", "Box"])
+ground.dynamic_body.include_colliders(["Player", "Box"])
 
 # --- Main loop ---
 running = True
@@ -77,48 +58,45 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-    # --- Camera follow ---
-    # Pass the sprite (has rect.center) so camera centers correctly
-    camera.follow(player.sprite, dt)
-
     # --- Input ---
     keys = pygame.key.get_pressed()
     speed_x = 5
-
-    new_vel_x = 0
+    vel_x = 0
     if keys[pygame.K_LEFT]:
-        new_vel_x = -speed_x
+        vel_x = -speed_x
     elif keys[pygame.K_RIGHT]:
-        new_vel_x = speed_x
+        vel_x = speed_x
 
-    player.sprite.apply_linear(new_vel_x, player.sprite.body.linearVelocity.y)
+    # Apply velocity via DynamicBody
+    player.dynamic_body.set_velocity(vel_x, player.dynamic_body.body.linearVelocity.y)
 
-    # --- Jump / raycast ---
-    ray_start = player.sprite.body.position
-    ray_end = (ray_start[0], ray_start[1] + 1.1)
-
+    # --- Jump ---
+    ray_start = player.dynamic_body.body.position
+    ray_end = (ray_start[0], ray_start[1] + 2.1)
     callback = Raycast()
     world.RayCast(callback, ray_start, ray_end)
 
     if keys[pygame.K_UP] and callback.hit:
-        player.sprite.apply_linear(player.sprite.body.linearVelocity.x, -10)
+        player.dynamic_body.set_velocity(player.dynamic_body.body.linearVelocity.x, -10)
 
     # --- Step Box2D ---
     world.Step(dt, 6, 2)
     world.ClearForces()
 
-    # --- Draw ---
+    # --- Update GameObjects ---
+    for obj in GameObject.all_objects:
+        obj.update()  # DynamicBody → Transform → Sprite
+
+    # --- Camera follow ---
+    camera.follow(player.sprite, dt)
+
+    # --- Render ---
     glClearColor(0, 0, 0, 1)
     glClear(GL_COLOR_BUFFER_BIT)
 
-    GameObject.UpdateAllDrawDynamic()
-    # Draw all GameObjects
     sprite_renderer.draw([obj.sprite for obj in GameObject.all_objects if obj.sprite])
-
-    # Use the same camera instance used for sprites so debug draw follows the world
     GameObject.DrawDebugWorld(world, camera)
-    # Draw Box2D debug
-    # GameObject.UpdateAllDraw(screen, MainCamera.camera)
+
     pygame.display.flip()
 
 # --- Cleanup ---
