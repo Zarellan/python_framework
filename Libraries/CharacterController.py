@@ -20,7 +20,7 @@ class CharacterController:
     gravity = 30
     def __init__(self, image_path, x, y):
         self.player = GameObject("player")
-        self.player.add_sprite(image_path,MainCamera.camera)
+        self.player.add_component(SpriteGL,image_path,MainCamera.camera)
         self.player.transform.x = x
         self.player.transform.y = y
         pass

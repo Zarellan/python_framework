@@ -40,14 +40,14 @@ class Tween:
 
     # Class method to tween sprite.x
     @classmethod
-    def x(cls, sprite, end_value, duration, on_complete=None, ease=linear):
+    def x(cls, gameobject, end_value, duration, on_complete=None, ease=linear):
         return cls(
-            start_value=sprite.x,
+            start_value= gameobject.transform.x,
             end_value=end_value,
             duration=duration,
             on_complete=on_complete,
             ease = ease,
-            setter=lambda val: setattr(sprite, "x", val)
+            setter=lambda val: setattr(gameobject.transform, "x", val)
         )
 
     # Class method to tween sprite.y

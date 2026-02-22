@@ -25,14 +25,14 @@ WorldHandler.world.contactListener = MyContactListener()
 
 # --- Create ground ---
 ground = GameObject("Ground")
-ground.add_dynamic_body(world, position=(20, 20), size=(40, 20), bodyType=b2_staticBody)
-ground.add_sprite("fish", camera)
+ground.add_component(DynamicBody,world, position=(20, 20), size=(40, 20), bodyType=b2_staticBody)
+ground.add_component(SpriteGL,"fish", camera)
 ground.draw_colliders = True
 
 # --- Create player ---
 player = GameObject("Player")
-player.add_dynamic_body(world, position=(5, 5), size=(2, 2), bodyType=b2_dynamicBody)
-player.add_sprite("1", camera)
+player.add_component(DynamicBody,world, position=(5, 5), size=(2, 2), bodyType=b2_dynamicBody)
+player.add_component(SpriteGL,"1", camera)
 player.draw_colliders = True
 player.dynamic_body.body.fixedRotation = True
 
@@ -40,8 +40,9 @@ player.dynamic_body.body.fixedRotation = True
 boxes = []
 for i in range(5):
     box = GameObject("Box")
-    box.add_dynamic_body(world, position=(20, 10 - (i * 2)), size=(1, 1),bodyType=b2_dynamicBody)
-    box.add_sprite("background", camera)
+    box.add_component(DynamicBody,world, position=(0,0), size=(1, 1),bodyType=b2_dynamicBody)
+    box.add_component(SpriteGL,"background", camera)
+    box.set_position(20, (10 - i*2))
     box.dynamic_body.include_colliders(["Ground", "Box", "Player"])
     boxes.append(box)
 
@@ -72,7 +73,7 @@ while running:
 
     # --- Jump ---
     ray_start = player.dynamic_body.body.position
-    ray_end = (ray_start[0], ray_start[1] + 2.1)
+    ray_end = (ray_start[0], ray_start[1] + 1.1)
     callback = Raycast()
     world.RayCast(callback, ray_start, ray_end)
 

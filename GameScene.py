@@ -25,27 +25,25 @@ class GameScene(Scene):
         # self.player.set_animation(["1","2"],0.3,True)
         # self.tes = SpriteGL("1",200,200,MainCamera.camera,"pl")
         self.tes = GameObject("pl")
-        self.tes.add_sprite("1",MainCamera.camera)
+        # self.tes.add_sprite("1",MainCamera.camera)
+        self.tes.add_component(SpriteGL, "1", MainCamera.camera)
+        self.sprite_tes2 = self.tes.get_component(SpriteGL)
+        self.sprite_tes2.set_animation(["1","2"],0.3,True)
         self.tes.set_position(200,200)
+        # self.tes.add_component(DynamicBody, world=WorldHandler.world, position=(0,0), size=(40,20),bodyType=b2_dynamicBody)
         self.player = CharacterController("1",200,200)
         self.player.player.sprite.set_layer(2)
         Persistent.dont_destroy_on_load(self.tes)
         self.player.player.sprite.set_animation(["1","2"],0.3,True)
         self.create_map()
-
-        # for i in range(50):
-        #     fish = GameObject("wal1l")
-        #     fish.add_sprite("fish", 200, 1 * i, MainCamera.camera)
-        #     fish.transform.x = 200
-
-        # Create player, map, world here
-        # create_map()
-        # self.player = ...
-        # self.camera = ...
+        
+        self.uiCamera = Camera(Windows.WIDTH,Windows.HEIGHT,Windows.HEIGHT,True)
+        self.UI_LOL = GameObject("play",True)
+        self.UI_LOL.add_component(SpriteGL, "background", self.uiCamera, is_world=False)
+        self.UI_LOL.transform.width = 100
+        self.UI_LOL.transform.pivot = (0.5,0.5)
+        self.UI_LOL.set_position(720 - 80,0)
         pass
-        # for i in range(30):
-        #     wall = GameObject("walld")
-        #     wall.create_sprite("fish", 300, 0, MainCamera.camera)
 
     def create_map(self):
         y = 0
@@ -54,7 +52,7 @@ class GameScene(Scene):
             for tile in row:
                 if tile == 1:
                     wall = GameObject("wall")
-                    wall.add_sprite("background", MainCamera.camera)
+                    wall.add_component(SpriteGL,"background", MainCamera.camera)
                     wall.transform.x = x * 32
                     wall.transform.y = y * 32
                 x += 1
@@ -73,8 +71,6 @@ class GameScene(Scene):
         if (KeyPress.down):
             SceneManager.load_scene(GameScene2())
 
-
-        # Put your Update(events) logic here
         pass
 
     def render(self):

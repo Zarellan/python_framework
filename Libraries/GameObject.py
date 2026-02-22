@@ -5,6 +5,7 @@ from Box2D import b2Filter
 from Libraries.TagRegistry import TagRegistry
 from OpenGL.GL import *
 from Libraries.Transform import Transform
+from Libraries.RectTransform import RectTransform
 from Libraries.DynamicBody import DynamicBody
 
 import math
@@ -13,18 +14,58 @@ class GameObject:
     all_objects = []
     all_tags = []
     PPU = 32
-    def __init__(self, tag):
+    def __init__(self, tag, use_rect=False):
         self.sprite = None
         self.tag = tag
-        self.transform = Transform()
+        if (use_rect):
+            self.transform = RectTransform()
+        else:
+            self.transform = Transform()
         # per-object flag that forwards to the sprite when present
         self._draw_colliders = False
+        self.components = {}
         self.__class__.all_objects.append(self)
 
         if self.tag not in GameObject.all_tags:
             TagRegistry.ensure_tag(self.tag)
             GameObject.all_tags.append(self.tag)
 
+
+    def add_component(self, cls, *args, **kwargs):
+        """Add a component to this GameObject"""
+        import inspect
+        sig = inspect.signature(cls.__init__)
+        params = list(sig.parameters.keys())
+
+        # If first parameter is named 'gameobject', pass self automatically
+        if params and params[0] in ("gameobject", "self"):  # self is normal for classes
+            # Check if 'gameobject' is actually first non-self parameter
+            if len(params) > 1 and params[1] == "gameobject":
+                component = cls(self, *args, **kwargs)
+            else:
+                component = cls(*args, **kwargs)
+        else:
+            component = cls(*args, **kwargs)
+
+        self.components[cls] = component
+
+        # Sprite shortcut
+        if isinstance(component, SpriteGL):
+            self.sprite = component
+        if isinstance(component, DynamicBody):
+            self.dynamic_body = component
+
+        return component    
+    def get_component(self, cls):
+        """Retrieve a component by class"""
+        return self.components.get(cls, None)
+
+    def remove_component(self, cls):
+        """Remove a component from this GameObject"""
+        if cls in self.components:
+            if isinstance(self.components[cls], SpriteGL):
+                self.sprite = None  # clear sprite shortcut
+            del self.components[cls]
 
     def add_sprite(self, image_path, camera):
         self.sprite = SpriteGL(image_path, self.transform.x, self.transform.y, camera)
@@ -100,22 +141,24 @@ class GameObject:
     def get_all_by_tag(cls, tag_name):
         return [obj for obj in cls.all_objects if obj.tag == tag_name]
     
-    def update_draw_dynamic(self):
-        if self.sprite and isinstance(self.sprite, SpriteDynamicGL):
-            # center the sprite on the physics body
-            self.transform.x = self.sprite.body.position[0] * self.PPU
-            self.transform.y = self.sprite.body.position[1] * self.PPU
-            self.transform.rotation = self.sprite.body.angle
+    # def update_draw_dynamic(self):
+    #     if self.sprite and isinstance(self.sprite, SpriteDynamicGL):
+    #         # center the sprite on the physics body
+    #         self.transform.x = self.sprite.body.position[0] * self.PPU
+    #         self.transform.y = self.sprite.body.position[1] * self.PPU
+    #         self.transform.rotation = self.sprite.body.angle
 
-            # sprite mirrors the transform
-            self.sprite.x = self.transform.x - self.sprite.width / 2
-            self.sprite.y = self.transform.y - self.sprite.height / 2
-            self.sprite.rotation = self.transform.rotation    # Class method to draw all sprites
-        pass
+    #         # sprite mirrors the transform
+    #         self.sprite.x = self.transform.x - self.sprite.width / 2
+    #         self.sprite.y = self.transform.y - self.sprite.height / 2
+    #         self.sprite.rotation = self.transform.rotation    # Class method to draw all sprites
+    #     pass
 
     def set_position(self,x,y):
         self.transform.x = x
         self.transform.y = y
+        if self.get_component(DynamicBody):
+            self.dynamic_body.body.position = (x,y)
 
     def update(self):
         # 1️⃣ Physics → Transform
@@ -144,22 +187,57 @@ class GameObject:
             self.dynamic_body.update_transform()
 
         # Transform → Sprite
-        if self.sprite:
-            if isinstance(self.sprite, SpriteDynamicGL):
-                self.update_draw_dynamic()
-            else:  # SpriteGL
-                self.update_draw_static()
-
+        if isinstance(self.transform, RectTransform):
+            self.update_draw_ui()
+        elif isinstance(self.sprite, SpriteDynamicGL):
+            self.update_draw_dynamic()
+        else:
+            self.update_draw_static()
         # Play animation if applicable
         if self.sprite and getattr(self.sprite, "animation_frames", None):
             self.sprite.play_animation()
 
     def update_draw_static(self):
+        if isinstance(self.transform, RectTransform):
+            return  # skip static update for UI
+
         if self.sprite and isinstance(self.sprite, SpriteGL):
             # Center sprite on transform
             self.sprite.x = self.transform.x - self.sprite.width / 2
             self.sprite.y = self.transform.y - self.sprite.height / 2
             self.sprite.rotation = self.transform.rotation
+
+    def update_draw_ui(self):
+        if self.sprite and isinstance(self.sprite, SpriteGL) and isinstance(self.transform, RectTransform):
+            camera = self.get_component(SpriteGL).camera
+
+            # Canvas center
+            center_x = camera.width / 2
+            center_y = camera.height / 2
+
+            # Normalize local position relative to canvas size
+            norm_x = self.transform.x / center_x   # -1..1 is full width
+            norm_y = self.transform.y / center_y   # -1..1 is full height
+
+            # Optional scaling factor (default 1 = normal size)
+            scale_x = getattr(self.transform, 'scale_factor_x', 1)
+            scale_y = getattr(self.transform, 'scale_factor_y', 1)
+
+            # Pivot offset
+            pivot_x = self.transform.pivot[0] * self.transform.width
+            pivot_y = self.transform.pivot[1] * self.transform.height
+
+            # Apply size to sprite
+            self.sprite.width = self.transform.width * scale_x
+            self.sprite.height = self.transform.height * scale_y
+
+            # Final sprite position
+            self.sprite.x = center_x + norm_x * center_x - pivot_x
+            self.sprite.y = center_y + norm_y * center_y - pivot_y
+
+            # Rotation
+            self.sprite.rotation = self.transform.rotation
+
     @classmethod
     def UpdateAllDrawDynamic(cls):
         for obj in cls.all_objects:
@@ -288,14 +366,15 @@ class GameObject:
         all_sprites = [obj.sprite for obj in GameObject.all_objects if obj.sprite is not None]
 
         try:
-            for sprite in all_sprites:
-                if isinstance(sprite, SpriteDynamicGL) and hasattr(sprite, 'body') and sprite.body is not None:
-                    for fixture in sprite.body.fixtures:
+            for obj in GameObject.all_objects:
+                body_comp = obj.get_component(DynamicBody)
+                if body_comp and body_comp.body:
+                    for fixture in body_comp.body.fixtures:
                         shape = fixture.shape
                         if shape.type == 0:  # circle
-                            cls.draw_circle(sprite,sprite.body, shape, camera)
+                            GameObject.draw_circle(obj, body_comp.body, shape, camera)
                         elif shape.type == 2:  # polygon
-                            cls.draw_polygon(sprite,sprite.body, shape, camera)
+                            GameObject.draw_polygon(obj, body_comp.body, shape, camera)
         finally:
             glMatrixMode(GL_MODELVIEW)
             glPopMatrix()

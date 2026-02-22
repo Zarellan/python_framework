@@ -27,7 +27,7 @@ class SpriteGL:
     animation_finished_VA = False
     x = 0
     y = 0
-    def __init__(self, image_path, x, y, camera, tag="none", layer_index = 0,is_world = True, origin_center = False, is_pixel = False):
+    def __init__(self, image_path, camera, tag="none", layer_index = 0,is_world = True, origin_center = False, is_pixel = False):
         # Load image with pygame
         if (image_path not in SpriteGL.textures_append):
             surface = pygame.image.load("image/" + image_path + ".png").convert_alpha()
@@ -35,8 +35,8 @@ class SpriteGL:
         
         self.layer_index = max(layer_index,0)
         SpriteGL.layers[self.layer_index].append(self)
-        self.x = x
-        self.y = y
+        self.x = 0
+        self.y = 0
         self.tag = tag
         self.origin_centered = origin_center
         self.camera = camera

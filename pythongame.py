@@ -1,5 +1,6 @@
 from Libraries.Libraries import *
 from GameScene import GameScene
+from GameScene3 import GameScene3
 
 # setup
 
@@ -199,11 +200,16 @@ try:
 
         # Update(events)
 
-        world.Step(Deltatime.dt, 6, 2)
-        world.ClearForces()
+        # world.Step(Deltatime.dt, 6, 2)
+        # world.ClearForces()
+        WorldHandler.world.Step(Deltatime.dt, 6, 2)
+        WorldHandler.world.ClearForces()
         Timer.UpdateAllTimers()
         GameObject.UpdateAllObjects()
         Tween.UpdateAllTweens()
+        for obj in GameObject.all_objects:
+            obj.update()  # DynamicBody → Transform → Sprite
+
         glClearColor(0, 0, 0, 1)
         glClear(GL_COLOR_BUFFER_BIT)
         # SpriteDynamicGL.UpdateAllDraw()

@@ -24,7 +24,8 @@ from Libraries.Raycast import Raycast
 from Libraries.MyContactListener import MyContactListener
 from Libraries.TagRegistry import TagRegistry
 from Libraries.CharacterController import CharacterController
-
+from Libraries.DynamicBody import DynamicBody
+from Libraries.RectTransform import RectTransform
 # SceneManager
 from SceneManager.Scene import Scene
 from SceneManager.SceneManager import SceneManager
