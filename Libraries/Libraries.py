@@ -25,6 +25,7 @@ from Libraries.TagRegistry import TagRegistry
 from Libraries.CharacterController import CharacterController
 from Libraries.DynamicBody import DynamicBody
 from Libraries.RectTransform import RectTransform
+from Libraries.PostProcessManager import PostProcessManager
 # SceneManager
 from SceneManager.Scene import Scene
 from SceneManager.SceneManager import SceneManager

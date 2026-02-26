@@ -5,7 +5,9 @@ class GameScenePhysics(Scene):
     def start(self):
         # --- Screen & Camera Setup ---
 
+
         MainCamera.camera.set_zoom(1)
+
         self.uiCamera = Camera(Windows.VIRTUALWIDTH,Windows.VIRTUALHEIGHT,Windows.VIRTUALHEIGHT,True)
         self.UI_LOL = GameObject("play",True)
         self.UI_LOL.add_component(SpriteGL, "background", self.uiCamera, is_world=False)

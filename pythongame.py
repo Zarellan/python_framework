@@ -180,7 +180,48 @@ def shutdown_engine():
 
     pygame.quit()
     sys.exit()
+# Create the manager (virtual size recommended)
+post_process = PostProcessManager(Windows.VIRTUALWIDTH, Windows.VIRTUALHEIGHT)
 
+
+vertex_shader_source = """
+#version 330 core
+layout(location = 0) in vec2 position;
+layout(location = 1) in vec2 texCoords;
+
+out vec2 vTexCoords;
+
+void main() {
+    vTexCoords = texCoords;
+    gl_Position = vec4(position, 0.0, 1.0);
+}
+"""
+
+fragment_shader_source = """
+#version 330 core
+in vec2 vTexCoords;
+out vec4 FragColor;
+
+uniform sampler2D screenTexture;
+
+void main() {
+    vec4 color = texture(screenTexture, vTexCoords);
+    // Only invert RGB, keep alpha unchanged
+    FragColor = vec4(vec3(1.0) - color.rgb, color.a);
+}
+"""
+
+import OpenGL.GL.shaders as shaders
+
+def compile_shader(vertex_src, fragment_src):
+    vertex = shaders.compileShader(vertex_src, GL_VERTEX_SHADER)
+    fragment = shaders.compileShader(fragment_src, GL_FRAGMENT_SHADER)
+    program = shaders.compileProgram(vertex, fragment)
+    return program
+
+my_shader_program = compile_shader(vertex_shader_source, fragment_shader_source)
+
+post_process.set_shader(my_shader_program)
 # t = Tween.x(heart_sprite, heart_sprite.x + 600 - 32, 1.0, ease=Tween.ease_in_quad,on_complete=lambda: print("finished"))
 # t = Tween.x(heart_sprite, 200, 1, ease=Tween.ease_out_quad,on_complete=lambda: print("finished"))
 # Tween.camera_zoom(ui_camera, 1.05, 1, ease=Tween.ease_out_quad,on_complete=lambda: print("finished"))
@@ -209,11 +250,18 @@ try:
         for obj in GameObject.all_objects:
             obj.update()  # DynamicBody → Transform → Sprite
 
+        post_process.bind_fbo()
         glClearColor(0, 0, 0, 1)
-        glClear(GL_COLOR_BUFFER_BIT)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         # SpriteDynamicGL.UpdateAllDraw()
         sprite_renderer.draw(GameObject.all_objects)
         GameObject.DrawDebugWorld(world, MainCamera.camera)
+
+        post_process.unbind_fbo()
+
+        glClearColor(0, 0, 0, 1)
+        glClear(GL_COLOR_BUFFER_BIT)
+        post_process.draw_fbo()
         pygame.display.flip()
         
         # Memory check every 60 frames (1 second at 60 FPS)
@@ -232,3 +280,4 @@ except Exception as e:
     shutdown_engine()
 finally:
     shutdown_engine()
+    post_process.cleanup()
