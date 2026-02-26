@@ -9,4 +9,4 @@ class MainCamera:
 
     @classmethod
     def Set_Camera(cls):
-        cls.camera = Camera(Windows.WIDTH,Windows.HEIGHT,Windows.HEIGHT)
+        cls.camera = Camera(Windows.VIRTUALWIDTH,Windows.VIRTUALHEIGHT,Windows.VIRTUALHEIGHT)

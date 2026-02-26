@@ -7,6 +7,7 @@ from OpenGL.GL import *
 from Libraries.Transform import Transform
 from Libraries.RectTransform import RectTransform
 from Libraries.DynamicBody import DynamicBody
+from Libraries.ScreenScaler import ScreenScaler
 
 import math
 
@@ -207,36 +208,42 @@ class GameObject:
             self.sprite.y = self.transform.y - self.sprite.height / 2
             self.sprite.rotation = self.transform.rotation
 
-    def update_draw_ui(self):
-        if self.sprite and isinstance(self.sprite, SpriteGL) and isinstance(self.transform, RectTransform):
-            camera = self.get_component(SpriteGL).camera
+    def update_draw_ui(self, screen_width=None, screen_height=None):
+        """
+        Draw UI element with 'Scale With Screen Size' mode.
+        screen_width, screen_height: current resolution (default to camera size)
+        """
+        if not (self.sprite and isinstance(self.transform, RectTransform)):
+            return
 
-            # Canvas center
-            center_x = camera.width / 2
-            center_y = camera.height / 2
+        camera = self.sprite.camera
+        if screen_width is None: screen_width = camera.width
+        if screen_height is None: screen_height = camera.height
 
-            # Normalize local position relative to canvas size
-            norm_x = self.transform.x / center_x   # -1..1 is full width
-            norm_y = self.transform.y / center_y   # -1..1 is full height
+        # 1️⃣ Get scaling factor
+        scaler = ScreenScaler(reference_width=1920, reference_height=1080)
+        scale = scaler.get_scale_factor(screen_width, screen_height)
 
-            # Optional scaling factor (default 1 = normal size)
-            scale_x = getattr(self.transform, 'scale_factor_x', 1)
-            scale_y = getattr(self.transform, 'scale_factor_y', 1)
+        # 2️⃣ Apply scaling
+        width_scaled = self.transform.width * scale
+        height_scaled = self.transform.height * scale
 
-            # Pivot offset
-            pivot_x = self.transform.pivot[0] * self.transform.width
-            pivot_y = self.transform.pivot[1] * self.transform.height
+        # 3️⃣ Compute pivot offset
+        pivot_x = self.transform.pivot[0] * width_scaled
+        pivot_y = self.transform.pivot[1] * height_scaled
 
-            # Apply size to sprite
-            self.sprite.width = self.transform.width * scale_x
-            self.sprite.height = self.transform.height * scale_y
+        # 4️⃣ Final position (centered in screen coordinates)
+        center_x = screen_width / 2
+        center_y = screen_height / 2
 
-            # Final sprite position
-            self.sprite.x = center_x + norm_x * center_x - pivot_x
-            self.sprite.y = center_y + norm_y * center_y - pivot_y
+        norm_x = self.transform.x / (scaler.reference_width / 2)
+        norm_y = self.transform.y / (scaler.reference_height / 2)
 
-            # Rotation
-            self.sprite.rotation = self.transform.rotation
+        self.sprite.width = width_scaled
+        self.sprite.height = height_scaled
+        self.sprite.x = center_x + norm_x * (screen_width / 2) - pivot_x
+        self.sprite.y = center_y + norm_y * (screen_height / 2) - pivot_y
+        self.sprite.rotation = self.transform.rotation
 
     @classmethod
     def UpdateAllDrawDynamic(cls):

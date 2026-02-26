@@ -1,12 +1,12 @@
 from Libraries.Libraries import *
 from GameScene import GameScene
 from GameScene3 import GameScene3
+from GameScenePhysics import GameScenePhysics
 
 # setup
 
 force_garbage_collection = True # if you worried about unexpected memory leak, change it to true
-PPM = 32.0  # pixels per meter
-TRACEMALLOC = False
+TRACEMALLOC = False # use it for debugging only, don't publish it while TRACEMALLOC is activated
 # --
 
 if (TRACEMALLOC):
@@ -19,7 +19,8 @@ if (TRACEMALLOC):
 # from Libraries.utils import y_correction
 
 Windows(1280, 720)
-Windows.Set_size(1280, 720)
+Windows.Set_size(1280,720)
+Windows.Set_size_virtual(1280,720)
 MainCamera()
 MainCamera.Set_Camera()
 SCREEN_WIDTH = Windows.WIDTH
@@ -41,8 +42,6 @@ world = b2World(gravity=(0, 9.8))
 WorldHandler.Set_World(world)
 # --
 
-def pixels_to_meters(px):
-    return px / SpriteDynamicGL.PPM
 
 
 
@@ -131,7 +130,7 @@ dx = 0
 dy = 0
 gravity = 30
 
-sprite_renderer = SpriteRendererGL(SCREEN_WIDTH, SCREEN_HEIGHT)
+sprite_renderer = SpriteRendererGL(Windows.VIRTUALWIDTH, Windows.VIRTUALHEIGHT)
 
 dt = 0
 speed_x = 100
@@ -185,7 +184,7 @@ def shutdown_engine():
 # t = Tween.x(heart_sprite, heart_sprite.x + 600 - 32, 1.0, ease=Tween.ease_in_quad,on_complete=lambda: print("finished"))
 # t = Tween.x(heart_sprite, 200, 1, ease=Tween.ease_out_quad,on_complete=lambda: print("finished"))
 # Tween.camera_zoom(ui_camera, 1.05, 1, ease=Tween.ease_out_quad,on_complete=lambda: print("finished"))
-SceneManager.load_scene(GameScene())
+SceneManager.load_scene(GameScenePhysics())
 
 try:
     while running:
@@ -214,6 +213,7 @@ try:
         glClear(GL_COLOR_BUFFER_BIT)
         # SpriteDynamicGL.UpdateAllDraw()
         sprite_renderer.draw(GameObject.all_objects)
+        GameObject.DrawDebugWorld(world, MainCamera.camera)
         pygame.display.flip()
         
         # Memory check every 60 frames (1 second at 60 FPS)

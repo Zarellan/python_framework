@@ -4,7 +4,6 @@ import pygame
 import tracemalloc
 from OpenGL.GL import *
 from Box2D import b2World, b2PolygonShape, b2_dynamicBody, b2_staticBody
-
 # Libraries
 from Libraries.sprite import Sprite
 from Libraries.spriteGL import SpriteGL
